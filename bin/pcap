@@ -1,0 +1,38 @@
+#!/usr/bin/env ruby
+
+require 'rubygems'
+require 'pcaplet'
+require 'socket'
+require 'optparse'
+require 'parseconfig'
+
+require 'pry'
+
+config = ParseConfig.new('config/pcap.cfg')
+
+options = {}
+OptionParser.new do |opt|
+  opt.on('--tap=VALUE',    'tap device name')   {|v| options[:tap] = v }
+  opt.on('--ip=VALUE',     'ip address')        {|v| options[:ip] = v }
+  opt.on('--inst=VALUE',   'instance name')     {|v| options[:instance_name] = v }
+
+  opt.parse!(ARGV)
+end
+
+ARGV.clear
+
+sock = TCPSocket.open(config['server'], config['port'])
+
+
+packet_dump = Pcaplet.new("-i #{options[:tap]}")
+filter = Pcap::Filter.new("dst #{options[:ip]}", packet_dump.capture)
+
+packet_dump.add_filter(filter)
+
+packet_dump.each_packet do |pkt|
+  if pkt.ip? && pkt.ip_dst.to_s == options[:ip]
+    sock.puts("#{options[:instance_name]}")
+  end
+end
+
+packet_dump.close

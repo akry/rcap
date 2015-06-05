@@ -1,0 +1,32 @@
+#!/usr/bin/env ruby
+
+require 'socket'
+require 'pry'
+
+class ServerConfig
+  attr_accessor :port
+  attr_accessor :accept_addr_list
+end
+
+config = ServerConfig.new
+config.instance_eval(File.read("config/server.cfg"))
+
+server = TCPServer.open(config.port)
+
+unity_socket = nil
+
+while true
+  s = server.accept
+
+  if not config.accept_addr_list.include?(s.remote_address.ip_address)
+    unity_socket = s
+    p "unity connected."
+  else
+    Thread.start(s, unity_socket) do |socket, unity_socket|
+      while buffer = socket.gets
+        unity_socket.puts(buffer)
+      end
+      socket.close
+    end
+  end
+end
